@@ -1,0 +1,34 @@
+[package]
+name = "chimera-relay"
+version = "0.1.0"
+edition = "2021"
+description = "Bootstrap + Circuit Relay server for the Chimera P2P network"
+
+[dependencies]
+# P2P Networking — same version as the desktop app (MUST match for protocol compatibility)
+# Only the features the relay needs — no request-response, cbor, websocket, dns, serde
+libp2p = { version = "0.54", features = [
+    "tokio",        # async runtime integration
+    "tcp",          # TCP transport
+    "noise",        # encryption (all connections encrypted)
+    "yamux",        # stream multiplexing
+    "kad",          # Kademlia DHT (peer discovery + record storage)
+    "identify",     # peers exchange info on connect
+    "ping",         # liveness checks
+    "relay",        # Circuit Relay v2 SERVER (not client)
+    "macros",       # #[derive(NetworkBehaviour)]
+    "ed25519",      # keypair type (same as desktop app)
+] }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+anyhow = "1"
+
+# Home directory detection (for default data dir)
+dirs = "6"
