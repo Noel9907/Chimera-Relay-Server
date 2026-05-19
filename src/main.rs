@@ -130,6 +130,30 @@ async fn main() -> anyhow::Result<()> {
         .expect("Valid multiaddr");
     swarm.listen_on(listen_addr)?;
 
+    // ── Announce our public address ──
+    // CRITICAL: the relay server only knows its EC2 private IP from kernel
+    // bound interfaces. When a peer requests a reservation, the relay must
+    // tell that peer the public address it can be reached at (so the peer
+    // can advertise /ip4/<relay-public>/tcp/<port>/p2p/<relay>/p2p-circuit
+    // as a way to reach it). Without this, the reservation response goes
+    // out with NO addresses and the client errors out with
+    // `NoAddressesInReservation`.
+    //
+    // Set CHIMERA_PUBLIC_IP to the EC2 instance's public IPv4.
+    if let Ok(public_ip) = std::env::var("CHIMERA_PUBLIC_IP") {
+        let public_addr: libp2p::Multiaddr = format!("/ip4/{}/tcp/{}", public_ip, port)
+            .parse()
+            .expect("CHIMERA_PUBLIC_IP must be a valid IPv4 address");
+        swarm.add_external_address(public_addr.clone());
+        info!("Announcing public external address: {}", public_addr);
+    } else {
+        tracing::warn!(
+            "CHIMERA_PUBLIC_IP not set — reservation responses will be empty \
+             and clients will fail with NoAddressesInReservation. \
+             Set CHIMERA_PUBLIC_IP=<ec2 public ipv4> when launching the relay."
+        );
+    }
+
     println!("═══════════════════════════════════════════════════════════");
     println!("  Chimera Relay Server");
     println!("  PeerId: {}", local_peer_id);
