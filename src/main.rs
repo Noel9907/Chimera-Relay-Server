@@ -83,7 +83,23 @@ async fn main() -> anyhow::Result<()> {
             // Circuit Relay v2 SERVER.
             // Desktop apps use relay::client::Behaviour (they USE relays).
             // We use relay::Behaviour (we ARE the relay).
-            let relay_server = relay::Behaviour::new(peer_id, relay::Config::default());
+            //
+            // Defaults are tuned for relay-as-a-bridge (clients are supposed to
+            // upgrade to a direct connection via DCUtR after meeting). We don't
+            // do DCUtR, so the relay IS the long-haul path. Bump the limits so
+            // a single circuit can carry an entire site without being killed
+            // mid-transfer. Default `max_circuit_bytes` is 128 KiB, which kills
+            // any site bigger than a small index.html.
+            let relay_config = relay::Config {
+                max_circuit_bytes: 1 << 30,                          // 1 GiB (was 128 KiB)
+                max_circuit_duration: Duration::from_secs(60 * 60),  // 1 hour (was 2 min)
+                max_circuits: 1024,                                  // was 16
+                max_circuits_per_peer: 64,                           // was 4
+                max_reservations: 512,                               // was 128
+                max_reservations_per_peer: 16,                       // was 4
+                ..Default::default()
+            };
+            let relay_server = relay::Behaviour::new(peer_id, relay_config);
 
             // Kademlia DHT — MUST use the same protocol ID as the desktop app.
             // If these don't match, peers will ignore each other's DHT messages.
